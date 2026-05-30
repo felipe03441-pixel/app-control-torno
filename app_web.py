@@ -1,19 +1,46 @@
-# --- SECCIÓN DE VISUALIZACIÓN Y ACTUALIZACIÓN ---
+import streamlit as st
+import Motor
+
 st.divider()
 st.subheader("📊 Trabajos en Proceso")
 
-df_actual = motor.cargar_datos()
+df_actual = Motor.cargar_datos()
 
-# ESTE ES EL CÓDIGO QUE NOS DIRÁ QUÉ ESTÁ PASANDO:
 if df_actual is not None:
-    st.write(f"DEBUG: Se encontraron {len(df_actual)} filas en la base de datos.") # Esto nos dirá si lee algo
-    
-    # Filtramos la tabla para mostrar SOLO lo que está 'EN PROCESO'
     df_pendientes = df_actual[df_actual['ESTADO'] == 'EN PROCESO']
     
     if not df_pendientes.empty:
-        st.dataframe(df_pendientes, use_container_width=True)
+        # 1. Mostramos la tabla
+        st.dataframe(
+            df_pendientes[['SOLICITANTE', 'PRIORIDAD', 'NOMBRE PIEZA', 'QTY', 'MATERIAL']], 
+            use_container_width=True,
+            hide_index=True
+        )
+        
+        st.divider()
+        st.subheader("✅ Marcar trabajo como Entregado")
+        
+        # 2. Creamos una lista de opciones para el menú desplegable
+        # Usamos el 'index' (número de fila real en el CSV) para no equivocarnos de pieza
+        opciones = []
+        for indice, fila in df_pendientes.iterrows():
+            texto_opcion = f"Fila {indice} - {fila['QTY']}x {fila['NOMBRE PIEZA']} ({fila['SOLICITANTE']})"
+            opciones.append(texto_opcion)
+            
+        trabajo_seleccionado = st.selectbox("Selecciona la orden que ya fue fabricada:", opciones)
+        
+        # 3. Botón para actualizar
+        if st.button("Confirmar Entrega", type="secondary"):
+            # Extraemos el número de fila exacto del texto seleccionado
+            indice_real = int(trabajo_seleccionado.split(" ")[1])
+            
+            # Llamamos al motor para que haga el cambio
+            Motor.marcar_entregado(indice_real)
+            
+            st.success("¡Trabajo marcado como ENTREGADO exitosamente!")
+            st.rerun() # Recarga la página automáticamente para actualizar la tabla
+            
     else:
-        st.info("No hay trabajos pendientes en el torno.")
+        st.success("¡Excelente! No hay trabajos pendientes en el torno.")
 else:
-    st.error("No se pudo cargar el archivo CSV. Revisa la ruta de la carpeta 'datos'.")
+    st.warning("No se encontró la base de datos aún.")
